@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../services/auth_service.dart';
 import 'dashboard_screen.dart';
 import 'signup_screen.dart';
 
@@ -14,6 +15,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _authService = AuthService();
   bool _obscurePassword = true;
   bool _isLoading = false;
 
@@ -24,24 +26,34 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _handleLogin() {
+  void _handleLogin() async {
     if (_formKey.currentState!.validate()) {
       setState(() {
         _isLoading = true;
       });
 
-      // Simulate login process
-      Future.delayed(const Duration(seconds: 1), () {
-        setState(() {
-          _isLoading = false;
-        });
-        
-        // Navigate to Dashboard
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const DashboardScreen()),
+      try {
+        await _authService.signInWithEmail(
+          _emailController.text.trim(),
+          _passwordController.text.trim(),
         );
-      });
+        // Navigation is handled by StreamBuilder in main.dart
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(e.toString()),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      }
     }
   }
 
@@ -116,6 +128,31 @@ class _LoginScreenState extends State<LoginScreen> {
                     'Sign in to continue',
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
+                  
+                  if (!AuthService().isFirebaseAvailable) 
+                      Padding(
+                        padding: const EdgeInsets.only(top: 16.0),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.amber.withValues(alpha: 0.5)),
+                          ),
+                          child: const Row(
+                            children: [
+                              Icon(Icons.info_outline, color: Colors.amber, size: 20),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Running in Demo Mode. Results will be simulated.',
+                                  style: TextStyle(color: Colors.amber, fontSize: 12),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                   
                   const SizedBox(height: 32),
                   

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../services/auth_service.dart';
 import 'dashboard_screen.dart';
 
 class SignupScreen extends StatefulWidget {
@@ -15,6 +16,7 @@ class _SignupScreenState extends State<SignupScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _authService = AuthService();
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _isLoading = false;
@@ -28,27 +30,47 @@ class _SignupScreenState extends State<SignupScreen> {
     super.dispose();
   }
 
-  void _handleSignup() {
+  void _handleSignup() async {
     if (_formKey.currentState!.validate()) {
       setState(() {
         _isLoading = true;
       });
 
-      // Simulate signup process
-      Future.delayed(const Duration(seconds: 1), () {
+      try {
+        await _authService.signUpWithEmail(
+          _emailController.text.trim(),
+          _passwordController.text.trim(),
+          _nameController.text.trim(),
+        );
+        
+        // Sign out immediately so they have to login (as requested)
+        await _authService.signOut();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Account created successfully! Please sign in.'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          Navigator.pop(context); // Go back to login screen
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(e.toString()),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } finally {
         if (mounted) {
           setState(() {
             _isLoading = false;
           });
-          
-          // Navigate to Dashboard
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(builder: (context) => const DashboardScreen()),
-            (route) => false,
-          );
         }
-      });
+      }
     }
   }
 
@@ -88,6 +110,31 @@ class _SignupScreenState extends State<SignupScreen> {
                       style: Theme.of(context).textTheme.bodyMedium,
                       textAlign: TextAlign.center,
                     ),
+
+                    if (!AuthService().isFirebaseAvailable) 
+                      Padding(
+                        padding: const EdgeInsets.only(top: 16.0),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.amber.withValues(alpha: 0.5)),
+                          ),
+                          child: const Row(
+                            children: [
+                              Icon(Icons.info_outline, color: Colors.amber, size: 20),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Running in Demo Mode. Results will be simulated.',
+                                  style: TextStyle(color: Colors.amber, fontSize: 12),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     
                     const SizedBox(height: 32),
                     

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../services/auth_service.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -46,7 +47,7 @@ class ProfileScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Manthan Sharma',
+                    AuthService().displayName,
                     style: Theme.of(context).textTheme.headlineMedium,
                   ),
                   Text(
@@ -74,7 +75,7 @@ class ProfileScreen extends StatelessWidget {
             
             // Settings List
             _buildSettingTile(Icons.school_outlined, 'Academic Details', 'Computer Science Dept.'),
-            _buildSettingTile(Icons.email_outlined, 'Email Address', 'manthan.s@campus.edu'),
+            _buildSettingTile(Icons.email_outlined, 'Email Address', AuthService().userEmail),
             _buildSettingTile(Icons.phone_outlined, 'Phone Number', '+91 98765 43210'),
             _buildSettingTile(Icons.lock_outline, 'Change Password', 'Update your security credentials'),
             
@@ -84,7 +85,7 @@ class ProfileScreen extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
-                onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
+                onPressed: () => AuthService().signOut(),
                 icon: const Icon(Icons.logout, color: AppTheme.errorColor),
                 label: const Text('Logout', style: TextStyle(color: AppTheme.errorColor)),
                 style: OutlinedButton.styleFrom(
