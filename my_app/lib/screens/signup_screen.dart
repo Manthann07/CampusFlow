@@ -20,6 +20,11 @@ class _SignupScreenState extends State<SignupScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _isLoading = false;
+  String _selectedRole = 'Student';
+  final List<String> _roles = ['Student', 'Faculty'];
+  bool _agreeToTerms = false;
+  bool _subscribeNewsletter = true;
+  String _yearOfStudy = '1st Year';
 
   @override
   void dispose() {
@@ -41,6 +46,11 @@ class _SignupScreenState extends State<SignupScreen> {
           _emailController.text.trim(),
           _passwordController.text.trim(),
           _nameController.text.trim(),
+          _selectedRole,
+          extraData: {
+            'yearOfStudy': _selectedRole == 'Student' ? _yearOfStudy : null,
+            'notificationsEnabled': _subscribeNewsletter,
+          },
         );
         
         // Sign out immediately so they have to login (as requested)
@@ -155,6 +165,28 @@ class _SignupScreenState extends State<SignupScreen> {
                     ),
                     
                     const SizedBox(height: 16),
+
+                    // Role Selection
+                    DropdownButtonFormField<String>(
+                      value: _selectedRole,
+                      decoration: const InputDecoration(
+                        labelText: 'I am a',
+                        prefixIcon: Icon(Icons.work_outline),
+                      ),
+                      items: _roles.map((String role) {
+                        return DropdownMenuItem<String>(
+                          value: role,
+                          child: Text(role),
+                        );
+                      }).toList(),
+                      onChanged: (String? newValue) {
+                        setState(() {
+                          _selectedRole = newValue!;
+                        });
+                      },
+                    ),
+                    
+                    const SizedBox(height: 16),
                     
                     // Email Field
                     TextFormField(
@@ -240,13 +272,71 @@ class _SignupScreenState extends State<SignupScreen> {
                       },
                     ),
                     
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 16),
+                    
+                    // Year of Study (Radio Buttons)
+                    if (_selectedRole == 'Student') ...[
+                      Text('Year of Study', style: Theme.of(context).textTheme.titleSmall),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            Radio<String>(
+                              value: '1st Year',
+                              groupValue: _yearOfStudy,
+                              onChanged: (val) => setState(() => _yearOfStudy = val!),
+                            ),
+                            const Text('1st'),
+                            Radio<String>(
+                              value: '2nd Year',
+                              groupValue: _yearOfStudy,
+                              onChanged: (val) => setState(() => _yearOfStudy = val!),
+                            ),
+                            const Text('2nd'),
+                            Radio<String>(
+                              value: '3rd Year',
+                              groupValue: _yearOfStudy,
+                              onChanged: (val) => setState(() => _yearOfStudy = val!),
+                            ),
+                            const Text('3rd'),
+                            Radio<String>(
+                              value: '4th Year',
+                              groupValue: _yearOfStudy,
+                              onChanged: (val) => setState(() => _yearOfStudy = val!),
+                            ),
+                            const Text('4th'),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+
+                    // Subscribe Toggle (Switch)
+                    SwitchListTile(
+                      title: const Text('Notifications', style: TextStyle(fontSize: 14)),
+                      subtitle: const Text('Receive email updates', style: TextStyle(fontSize: 12)),
+                      value: _subscribeNewsletter,
+                      onChanged: (val) => setState(() => _subscribeNewsletter = val),
+                      secondary: const Icon(Icons.notifications_active_outlined),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+
+                    // Terms Checkbox
+                    CheckboxListTile(
+                      title: const Text('I agree to the Terms & Conditions', style: TextStyle(fontSize: 14)),
+                      value: _agreeToTerms,
+                      onChanged: (val) => setState(() => _agreeToTerms = val ?? false),
+                      controlAffinity: ListTileControlAffinity.leading,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    
+                    const SizedBox(height: 24),
                     
                     // Sign Up Button
                     SizedBox(
                       height: 56,
                       child: ElevatedButton(
-                        onPressed: _isLoading ? null : _handleSignup,
+                        onPressed: (_isLoading || !_agreeToTerms) ? null : _handleSignup,
                         child: _isLoading
                             ? const SizedBox(
                                 height: 20,
