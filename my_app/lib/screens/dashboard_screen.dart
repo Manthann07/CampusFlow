@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
+import 'package:provider/provider.dart';
+import 'package:my_app/services/language_service.dart';
+import 'package:my_app/theme/app_theme.dart';
 import '../widgets/appointment_card.dart';
 import '../widgets/quick_action_card.dart';
 import '../services/auth_service.dart';
 import '../services/appointment_service.dart';
-import 'book_appointment_screen.dart';
-import 'profile_screen.dart';
+import 'package:my_app/screens/book_appointment_screen.dart';
+import 'package:my_app/screens/profile_screen.dart';
 import '../services/api_service.dart';
 import '../services/notification_service.dart';
-import 'settings_screen.dart';
-import 'help_support_screen.dart';
-import 'notifications_screen.dart';
+import 'package:my_app/screens/notifications_screen.dart';
+import 'package:my_app/screens/edit_appointment_screen.dart';
+import 'package:my_app/screens/login_screen.dart';
+import 'package:my_app/screens/settings_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -56,7 +59,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   String _displayName = 'User';
 
-  Widget _buildHomeContent() {
+  Widget _buildHomeContent(LanguageService langService) {
+    
     if (_isLoadingRole) {
       return Center(
         child: Column(
@@ -65,7 +69,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const CircularProgressIndicator(),
             const SizedBox(height: 16),
             Text(
-              'Syncing profile...',
+              langService.translate('syncing_profile'),
               style: TextStyle(color: Colors.grey[600]),
             ),
           ],
@@ -93,7 +97,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                    color: AppTheme.primaryColor.withOpacity(0.3),
                     blurRadius: 15,
                     offset: const Offset(0, 8),
                   ),
@@ -103,7 +107,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Welcome Back, $_displayName!',
+                    '${langService.translate('welcome_back')}, ${langService.tryTranslate(_displayName)}!',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
@@ -111,9 +115,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    _userRole == 'Faculty' ? 'Faculty Member' : 'Student',
+                    _userRole == 'Faculty' ? langService.translate('faculty_member') : langService.translate('student_member'),
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.8),
+                      color: Colors.white.withOpacity(0.8),
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
                     ),
@@ -121,10 +125,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   const SizedBox(height: 8),
                   Text(
                     _userRole == 'Faculty' 
-                      ? 'Review and manage your pending appointments'
-                      : 'Manage your faculty appointments efficiently',
+                      ? langService.translate('faculty_subtitle')
+                      : langService.translate('student_subtitle'),
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.white.withValues(alpha: 0.9),
+                      color: Colors.white.withOpacity(0.9),
                     ),
                   ),
                 ],
@@ -136,7 +140,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             // Quick Actions (Only for Students)
             if (_userRole == 'Student') ...[
               Text(
-                'Quick Actions',
+                langService.translate('quick_actions'),
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: 16),
@@ -146,7 +150,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   Expanded(
                     child: QuickActionCard(
                       icon: Icons.add_circle_outline,
-                      title: 'Book Appointment',
+                      title: langService.translate('book_appointment'),
                       color: AppTheme.primaryColor,
                       onTap: () {
                         Navigator.push(
@@ -160,7 +164,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   Expanded(
                     child: QuickActionCard(
                       icon: Icons.people_outline,
-                      title: 'Faculty List',
+                      title: langService.translate('faculty_list'),
                       color: AppTheme.secondaryColor,
                       onTap: () {
                         setState(() {
@@ -179,7 +183,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  _userRole == 'Faculty' ? 'Recent Requests' : 'Upcoming Appointments',
+                  _userRole == 'Faculty' ? langService.translate('recent_requests') : langService.translate('upcoming_appointments'),
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 TextButton(
@@ -188,7 +192,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       _selectedIndex = 1; // Go to Appointments tab
                     });
                   },
-                  child: const Text('View All'),
+                  child: Text(langService.translate('view_all')),
                 ),
               ],
             ),
@@ -226,7 +230,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   Icon(Icons.calendar_today_outlined, size: 48, color: Colors.grey[400]),
                   const SizedBox(height: 16),
                   Text(
-                    'No appointments found',
+                    langService.translate('no_appointments'),
                     style: TextStyle(color: Colors.grey[600]),
                   ),
                 ],
@@ -252,7 +256,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildAppointmentsContent() {
+  Widget _buildAppointmentsContent(LanguageService langService) {
     if (_isLoadingRole) return const Center(child: CircularProgressIndicator());
 
     return StreamBuilder<List<Map<String, dynamic>>>(
@@ -265,7 +269,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         final appointments = snapshot.data ?? [];
         
         if (appointments.isEmpty) {
-          return Center(child: Text('No appointments registered yet.'));
+          return Center(child: Text(langService.translate('no_appointments')));
         }
 
         return ListView.separated(
@@ -278,7 +282,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildSearchContent() {
+  Widget _buildSearchContent(LanguageService langService) {
     if (_isLoadingRole) return const Center(child: CircularProgressIndicator());
 
     return FutureBuilder<List<Map<String, dynamic>>>(
@@ -297,13 +301,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 children: [
                   const Icon(Icons.error_outline, size: 48, color: Colors.red),
                   const SizedBox(height: 16),
-                  Text('Error loading faculty list', style: Theme.of(context).textTheme.titleMedium),
+                  Text(langService.translate('error_loading_list'), style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 8),
                   Text(snapshot.error.toString(), textAlign: TextAlign.center, style: const TextStyle(color: Colors.grey)),
                   const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: () => setState(() {}), 
-                    child: const Text('Retry'),
+                    child: Text(langService.translate('retry')),
                   ),
                 ],
               ),
@@ -322,7 +326,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 children: [
                   const Icon(Icons.people_outline, size: 48, color: Colors.grey),
                   const SizedBox(height: 16),
-                  const Text('No faculty members found.'),
+                  Text(langService.translate('no_faculty_found')),
                   const SizedBox(height: 8),
                   Text(
                     'Ensure users are registered with the role "Faculty" in MongoDB.',
@@ -333,7 +337,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   TextButton.icon(
                     onPressed: () => setState(() {}), 
                     icon: const Icon(Icons.refresh),
-                    label: const Text('Refresh'),
+                    label: Text(langService.translate('refresh')),
                   ),
                 ],
               ),
@@ -357,9 +361,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
                   child: const Icon(Icons.person, color: AppTheme.primaryColor),
                 ),
-                title: Text(faculty['name'] ?? 'Unknown Faculty', 
+                title: Text(langService.tryTranslate(faculty['name'] ?? 'Unknown Faculty'), 
                   style: const TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: Text(faculty['department'] ?? 'Department unavailable'),
+                subtitle: Text(langService.tryTranslate(faculty['department'] ?? 'Department unavailable')),
                 trailing: _userRole == 'Student' 
                   ? ElevatedButton(
                       style: ElevatedButton.styleFrom(
@@ -372,7 +376,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           MaterialPageRoute(builder: (context) => const BookAppointmentScreen()),
                         );
                       }, 
-                      child: const Text('Book'),
+                      child: Text(langService.translate('book')),
                     )
                   : null,
               ),
@@ -407,7 +411,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
         if (_userRole == 'Faculty' && (status == 'pending' || status == 'Pending')) {
           _showApprovalDialog(appointment['id']);
         } else if (_userRole == 'Student') {
-          _showEditDialog(appointment);
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => EditAppointmentScreen(appointment: appointment),
+            ),
+          );
         }
       },
     );
@@ -436,139 +445,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Future<void> _showEditDialog(Map<String, dynamic> appointment) async {
-    // Show loading while fetching fresh data to ensure we see the rejection reason
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator()),
-    );
+  // Removed _showEditDialog as it's now a full screen
 
-    final String id = appointment['id']?.toString() ?? appointment['_id']?.toString() ?? '';
-    final freshData = await ApiService.fetchSingleAppointment(id) ?? appointment;
-    
-    if (mounted) Navigator.pop(context); // Remove loading
-
-    final TextEditingController timeController = TextEditingController(text: freshData['time']);
-    final String? reason = freshData['rejectionReason'];
-    final bool isRejected = (freshData['status']?.toString().toLowerCase().contains('reject') ?? false);
-
-    if (mounted) {
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Edit Appointment'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 1. Show Original Subject/Purpose
-              Text('Subject:', style: TextStyle(color: Colors.grey[600], fontSize: 12, fontWeight: FontWeight.bold)),
-              Text(freshData['subject'] ?? 'No subject provided', style: const TextStyle(fontSize: 14)),
-              const Divider(height: 24),
-
-              // 2. Show Faculty Note if Rejected
-              if (isRejected && reason != null && reason.isNotEmpty)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.red.withOpacity(0.2)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Row(
-                        children: [
-                          Icon(Icons.report_problem_outlined, size: 16, color: Colors.red),
-                          SizedBox(width: 8),
-                          Text('Faculty Rejection Note:', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 13)),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Text(reason, style: const TextStyle(color: Colors.redAccent, fontSize: 13)),
-                    ],
-                  ),
-                )
-              else if (freshData['status']?.toString().toLowerCase() == 'approved')
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(10),
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.check_circle_outline, size: 16, color: Colors.green),
-                      SizedBox(width: 8),
-                      Text('This appointment is Approved', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 13)),
-                    ],
-                  ),
-                ),
-
-              const Text('Update your preferred time:'),
-              const SizedBox(height: 12),
-              TextField(
-                controller: timeController,
-                decoration: const InputDecoration(
-                  labelText: 'Time',
-                  hintText: 'e.g. 11:00 AM',
-                  prefixIcon: Icon(Icons.access_time),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                await AppointmentService().updateAppointment(
-                  appointment['id'],
-                  {'time': timeController.text.trim()},
-                );
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Appointment time updated'), backgroundColor: Colors.blue),
-                  );
-                  Navigator.pop(context);
-                }
-              },
-              child: const Text('Update'),
-            ),
-          ],
-        ),
-      );
-    }
-  }
 
   void _showApprovalDialog(String appointmentId) {
+    final langService = Provider.of<LanguageService>(context, listen: false);
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Manage Appointment'),
-        content: const Text('Do you want to approve or reject this appointment request?'),
+        title: Text(langService.translate('manage_appointment')),
+        content: Text(langService.translate('approve_reject_question')),
         actions: [
           TextButton(
             onPressed: () {
               Navigator.pop(context); // Close current dialog
               _showRejectionReasonDialog(appointmentId); // Show nested reason dialog
             },
-            child: const Text('Reject', style: TextStyle(color: Colors.red)),
+            child: Text(langService.translate('rejected'), style: const TextStyle(color: Colors.red)),
           ),
           ElevatedButton(
             onPressed: () {
               AppointmentService().updateAppointment(appointmentId, {'status': 'approved'});
               Navigator.pop(context);
             },
-            child: const Text('Approve'),
+            child: Text(langService.translate('approved')),
           ),
         ],
       ),
@@ -576,22 +476,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _showRejectionReasonDialog(String appointmentId) {
+    final langService = Provider.of<LanguageService>(context, listen: false);
     final TextEditingController reasonController = TextEditingController();
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Rejection Reason'),
+        title: Text(langService.translate('rejection_reason')),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Please provide a reason for rejection:'),
+            Text(langService.translate('provide_rejection_reason')),
             const SizedBox(height: 16),
             TextField(
               controller: reasonController,
               maxLines: 3,
-              decoration: const InputDecoration(
-                hintText: 'e.g. Out of office, Please choose another time...',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                hintText: 'e.g. ${langService.tryTranslate('not_possible_on_that_day')}...',
+                border: const OutlineInputBorder(),
               ),
             ),
           ],
@@ -599,13 +500,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(langService.translate('cancel')),
           ),
           ElevatedButton(
             onPressed: () {
               if (reasonController.text.trim().isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Please enter a reason')),
+                  SnackBar(content: Text(langService.translate('please_select_reason'))),
                 );
                 return;
               }
@@ -615,13 +516,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
               });
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Appointment rejected with reason'), backgroundColor: Colors.orange),
+                  SnackBar(content: Text(langService.translate('rejected')), backgroundColor: Colors.orange),
                 );
                 Navigator.pop(context);
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
-            child: const Text('Confirm Reject'),
+            child: Text(langService.translate('confirm_reject')),
           ),
         ],
       ),
@@ -630,15 +531,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final langService = Provider.of<LanguageService>(context);
     if (_isLoadingRole) {
-      return const Scaffold(
+      return Scaffold(
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               CircularProgressIndicator(),
               SizedBox(height: 16),
-              Text('Syncing profile...', style: TextStyle(color: Colors.grey)),
+              Text(langService.translate('syncing_profile'), style: const TextStyle(color: Colors.grey)),
             ],
           ),
         ),
@@ -646,17 +548,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
 
     final List<Widget> screens = [
-      _buildHomeContent(),
-      _buildAppointmentsContent(),
-      _buildSearchContent(),
-      const ProfileScreen(),
+      _buildHomeContent(langService),
+      _buildAppointmentsContent(langService),
+      _buildSearchContent(langService),
+      ProfileScreen(),
     ];
 
     final List<String> titles = [
-      'CampusFlow',
-      'Appointments',
-      'Search',
-      'My Profile'
+      langService.translate('home'),
+      langService.translate('appointments'),
+      langService.translate('search'),
+      langService.translate('profile')
     ];
 
     return Scaffold(
@@ -723,11 +625,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ),
               accountName: Text(_displayName, style: const TextStyle(fontWeight: FontWeight.bold)),
-              accountEmail: Text('${_userRole ?? 'User'} | ${AuthService().currentUser?.email ?? 'user@campusflow.com'}'),
+              accountEmail: Text('${langService.tryTranslate(_userRole ?? 'user')} | ${AuthService().currentUser?.email ?? 'user@campusflow.com'}'),
             ),
             ListTile(
               leading: const Icon(Icons.home_outlined),
-              title: const Text('Home'),
+              title: Text(langService.translate('home')),
               selected: _selectedIndex == 0,
               onTap: () {
                 setState(() => _selectedIndex = 0);
@@ -736,7 +638,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.calendar_today_outlined),
-              title: const Text('My Appointments'),
+              title: Text(langService.translate('appointments')),
               selected: _selectedIndex == 1,
               onTap: () {
                 setState(() => _selectedIndex = 1);
@@ -745,7 +647,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.person_outline),
-              title: const Text('Profile'),
+              title: Text(langService.translate('profile')),
               selected: _selectedIndex == 3,
               onTap: () {
                 setState(() => _selectedIndex = 3);
@@ -755,27 +657,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const Divider(),
             ListTile(
               leading: const Icon(Icons.settings_outlined),
-              title: const Text('Settings'),
+              title: Text(langService.translate('settings')),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
               },
             ),
-            ListTile(
-              leading: const Icon(Icons.help_outline),
-              title: const Text('Help & Support'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const HelpSupportScreen()));
-              },
-            ),
             const Spacer(),
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.red),
-              title: const Text('Logout', style: TextStyle(color: Colors.red)),
+              title: Text(langService.translate('logout'), style: const TextStyle(color: Colors.red)),
               onTap: () async {
                 Navigator.pop(context);
                 await AuthService().signOut();
+                if (mounted) {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                    (route) => false,
+                  );
+                }
               },
             ),
             const SizedBox(height: 20),
@@ -792,7 +693,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               );
             },
             icon: const Icon(Icons.add),
-            label: const Text('Book'),
+            label: Text(langService.translate('book')),
             backgroundColor: AppTheme.primaryColor,
           )
         : FloatingActionButton(
@@ -806,26 +707,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
             _selectedIndex = index;
           });
         },
-        destinations: const [
+        destinations: [
           NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Home',
+            icon: const Icon(Icons.home_outlined),
+            selectedIcon: const Icon(Icons.home),
+            label: langService.translate('home'),
           ),
           NavigationDestination(
-            icon: Icon(Icons.calendar_today_outlined),
-            selectedIcon: Icon(Icons.calendar_today),
-            label: 'Appointments',
+            icon: const Icon(Icons.calendar_today_outlined),
+            selectedIcon: const Icon(Icons.calendar_today),
+            label: langService.translate('appointments'),
           ),
           NavigationDestination(
-            icon: Icon(Icons.search_outlined),
-            selectedIcon: Icon(Icons.search),
-            label: 'Search',
+            icon: const Icon(Icons.search_outlined),
+            selectedIcon: const Icon(Icons.search),
+            label: langService.translate('search'),
           ),
           NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: 'Profile',
+            icon: const Icon(Icons.person_outline),
+            selectedIcon: const Icon(Icons.person),
+            label: langService.translate('profile'),
           ),
         ],
       ),

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -58,6 +59,10 @@ class AuthService {
           debugPrint("DEBUG: User signed in. Syncing profile to MongoDB...");
           // We trigger getUserRole to ensure the profile exists in MongoDB
           await getUserRole();
+          
+          // Save session to SharedPreferences
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setBool('isLoggedIn', true);
         }
 
         return result;
@@ -120,6 +125,10 @@ class AuthService {
         } catch (e) {
           debugPrint("DEBUG: Firestore sync ignored: $e");
         }
+
+        // Save session to SharedPreferences
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('isLoggedIn', true);
 
         return result;
       } on FirebaseAuthException catch (e) {
@@ -216,6 +225,10 @@ class AuthService {
 
   // Sign out
   Future<void> signOut() async {
+    // Clear session from SharedPreferences
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isLoggedIn', false);
+
     if (isFirebaseAvailable) {
       await _auth!.signOut();
     } else {

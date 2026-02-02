@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../services/auth_service.dart';
-import 'dashboard_screen.dart';
-import 'signup_screen.dart';
+import 'package:my_app/screens/dashboard_screen.dart';
+import 'package:my_app/screens/signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -37,7 +37,12 @@ class _LoginScreenState extends State<LoginScreen> {
           _emailController.text.trim(),
           _passwordController.text.trim(),
         );
-        // Navigation is handled by StreamBuilder in main.dart
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const DashboardScreen()),
+          );
+        }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

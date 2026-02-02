@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../services/language_service.dart';
 import '../theme/app_theme.dart';
 import '../services/auth_service.dart';
+import '../services/api_service.dart';
 import '../services/appointment_service.dart';
 
 class BookAppointmentScreen extends StatefulWidget {
@@ -20,86 +23,74 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
   bool _isBooking = false;
   List<Map<String, dynamic>> _faculties = [];
 
-  List<String> get _timeSlots {
-    if (_selectedFaculty == null) return [];
-    
-    final availability = _selectedFaculty?['availability'];
-    if (availability == null) {
-        // Default 9-5
-        return ['09:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '02:00 PM', '03:00 PM', '04:00 PM'];
-    }
-
-    // Check if enabled
-    if (availability['enabled'] == false) return [];
-
-    int start = availability['startHour'] ?? 9;
-    int end = availability['endHour'] ?? 17;
-    List<String> slots = [];
-    
-    for (int i = start; i < end; i++) {
-      if (i == 13) continue; // Skip lunch 1PM usually
-      final hour = i > 12 ? i - 12 : i;
-      final ampm = i >= 12 ? 'PM' : 'AM';
-      slots.add('${hour.toString().padLeft(2, '0')}:00 $ampm');
-    }
-    return slots;
-  }
-
   @override
   void initState() {
     super.initState();
     _loadFaculties();
   }
 
-  @override
-  void dispose() {
-    _reasonController.dispose();
-    super.dispose();
-  }
-
   Future<void> _loadFaculties() async {
     try {
-      final list = await AuthService().getFacultyList();
+      final faculties = await ApiService.fetchAllFaculties();
       if (mounted) {
         setState(() {
-          _faculties = list;
+          _faculties = faculties;
           _isLoadingFaculty = false;
         });
       }
     } catch (e) {
-      debugPrint("Error loading faculties: $e");
       if (mounted) {
-        setState(() {
-          _isLoadingFaculty = false;
-        });
+        setState(() => _isLoadingFaculty = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load faculty: $e')),
+          SnackBar(content: Text('Error loading faculty list: $e')),
         );
       }
     }
   }
 
+  List<String> get _timeSlots {
+    if (_selectedFaculty == null) return [];
+    
+    final availability = _selectedFaculty?['availability'];
+    if (availability == null || !(availability['enabled'] ?? true)) {
+      return [];
+    }
+
+    final int start = availability['startHour'] ?? 9;
+    final int end = availability['endHour'] ?? 17;
+    
+    List<String> slots = [];
+    for (int i = start; i < end; i++) {
+        final String hourStr = i > 12 ? '${i - 12}:00 PM' : '$i:00 ${i == 12 ? 'PM' : 'AM'}';
+        slots.add(hourStr);
+    }
+    return slots;
+  }
+
   Future<void> _handleBooking() async {
-    if (_formKey.currentState!.validate() && 
-        _selectedDate != null && 
-        _selectedTime != null && 
-        _selectedFaculty != null) {
-      
+    final langService = Provider.of<LanguageService>(context, listen: false);
+    if (_formKey.currentState!.validate() && _selectedFaculty != null && _selectedDate != null && _selectedTime != null) {
       setState(() => _isBooking = true);
-      
       try {
-        await AppointmentService().createAppointment(
-          facultyId: _selectedFaculty!['uid'],
-          facultyName: _selectedFaculty!['name'],
-          date: '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}',
-          time: _selectedTime!,
-          subject: _reasonController.text.trim(),
-        );
+        final user = AuthService().currentUser;
+        if (user == null) return;
+
+        await AppointmentService().createAppointment({
+          'studentUid': user.uid,
+          'studentName': AuthService().displayName,
+          'facultyUid': _selectedFaculty!['uid'],
+          'facultyName': _selectedFaculty!['name'],
+          'date': _selectedDate!.toIso8601String(),
+          'time': _selectedTime,
+          'reason': _reasonController.text.trim(),
+          'status': 'pending',
+          'createdAt': DateTime.now().toIso8601String(),
+        });
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Appointment Requested Successfully!'),
+            SnackBar(
+              content: Text(langService.translate('booking_success')),
               backgroundColor: AppTheme.successColor,
             ),
           );
@@ -116,16 +107,17 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
       }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please complete all fields')),
+        SnackBar(content: Text(langService.translate('please_complete_all_fields'))),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final langService = Provider.of<LanguageService>(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Book Appointment'),
+        title: Text(langService.translate('book_appointment')),
       ),
       body: _isLoadingFaculty 
         ? const Center(child: CircularProgressIndicator())
@@ -135,118 +127,58 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
           child: Form(
             key: _formKey,
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Select Faculty',
+                  langService.translate('select_faculty'),
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: 12),
-                if (_faculties.isEmpty)
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.amber.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.amber.withOpacity(0.3)),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.warning_amber_rounded, color: Colors.amber),
-                        SizedBox(width: 8),
-                        Expanded(child: Text('No faculty found in MongoDB database. Ensure they registered as Faculty.', style: TextStyle(fontSize: 12))),
-                      ],
-                    ),
-                  )
-                else
-                  DropdownButtonFormField<Map<String, dynamic>>(
-                    decoration: const InputDecoration(
-                      prefixIcon: Icon(Icons.person_outline),
-                      hintText: 'Choose a professor',
-                    ),
-                    value: _selectedFaculty,
-                    items: _faculties.map((f) => DropdownMenuItem(
-                      value: f, 
-                      child: Text('${f['name']} (${f['department'] ?? 'Dept'})')
-                    )).toList(),
-                    onChanged: (val) {
-                      setState(() {
-                        _selectedFaculty = val;
-                        _selectedTime = null; // Reset time when faculty changes
-                        _selectedDate = null; // Reset date
-                      });
-                    },
-                    validator: (val) => val == null ? 'Please select a faculty' : null,
+                DropdownButtonFormField<Map<String, dynamic>>(
+                  decoration: InputDecoration(
+                    hintText: langService.translate('choose_professor'),
                   ),
-                  
-                 if (_selectedFaculty != null && _selectedFaculty?['availability']?['enabled'] == false)
-                    Container(
-                      margin: const EdgeInsets.only(top: 16),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-                      child: const Text(
-                        "This faculty is currently not accepting appointments.",
-                        style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
-                      ),
-                    ),
+                  value: _selectedFaculty,
+                  items: _faculties.map((f) => DropdownMenuItem(
+                    value: f,
+                    child: Text(langService.tryTranslate(f['name'] ?? 'Unknown Faculty')),
+                  )).toList(),
+                  onChanged: (val) => setState(() {
+                    _selectedFaculty = val;
+                    _selectedTime = null;
+                  }),
+                ),
                 
                 const SizedBox(height: 24),
                 
                 Text(
-                  'Select Date',
+                  langService.translate('select_date'),
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: 12),
                 InkWell(
                   onTap: () async {
-                    final availability = _selectedFaculty?['availability'];
-                    final List<dynamic> allowedDays = availability?['days'] ?? [1, 2, 3, 4, 5]; // Default Mon-Fri
-                    
-                    DateTime start = DateTime.now().add(const Duration(days: 1));
-                    DateTime end = DateTime.now().add(const Duration(days: 30));
-                    
-                    // Find first valid date for initialDate
-                    DateTime initialDate = start;
-                    while (!allowedDays.contains(initialDate.weekday) && initialDate.isBefore(end)) {
-                      initialDate = initialDate.add(const Duration(days: 1));
-                    }
-
-                    if (initialDate.isAfter(end)) {
-                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('No available dates found for this faculty in the next 30 days.'))
-                       );
-                       return;
-                    }
-
                     final date = await showDatePicker(
                       context: context,
-                      initialDate: initialDate,
+                      initialDate: DateTime.now().add(const Duration(days: 1)),
                       firstDate: DateTime.now(),
-                      lastDate: end,
-                      selectableDayPredicate: (day) {
-                        return allowedDays.contains(day.weekday);
-                      },
+                      lastDate: DateTime.now().add(const Duration(days: 30)),
                     );
                     if (date != null) setState(() => _selectedDate = date);
                   },
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     decoration: BoxDecoration(
-                      color: AppTheme.surfaceColor,
-                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey[300]!),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Icon(Icons.calendar_today_outlined, color: AppTheme.textSecondary),
-                        const SizedBox(width: 12),
-                        Text(
-                          _selectedDate == null 
-                            ? 'Choose a date' 
-                            : '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}',
-                          style: TextStyle(
-                            color: _selectedDate == null ? AppTheme.textLight : AppTheme.textPrimary,
-                          ),
-                        ),
+                        Text(_selectedDate == null 
+                          ? langService.translate('choose_date')
+                          : '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}'),
+                        const Icon(Icons.calendar_today, size: 20),
                       ],
                     ),
                   ),
@@ -255,23 +187,24 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                 const SizedBox(height: 24),
                 
                 Text(
-                  'Available Time Slots',
+                  langService.translate('available_time_slots'),
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: 12),
+                if (_selectedFaculty == null)
+                  Text(langService.translate('please_select_faculty'), style: const TextStyle(color: Colors.grey))
+                else if (_timeSlots.isEmpty)
+                  Text(langService.translate('not_accepting_appointments'), style: const TextStyle(color: AppTheme.errorColor))
+                else
                 Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: _timeSlots.isEmpty 
-                    ? [const Text("No slots available/Select Faculty first", style: TextStyle(color: Colors.grey))] 
-                    : _timeSlots.map((time) {
-                    final isSelected = _selectedTime == time;
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: _timeSlots.map((slot) {
+                    final isSelected = _selectedTime == slot;
                     return ChoiceChip(
-                      label: Text(time),
+                      label: Text(slot),
                       selected: isSelected,
-                      onSelected: (selected) {
-                        setState(() => _selectedTime = selected ? time : null);
-                      },
+                      onSelected: (val) => setState(() => _selectedTime = val ? slot : null),
                       selectedColor: AppTheme.primaryColor,
                       labelStyle: TextStyle(
                         color: isSelected ? Colors.white : AppTheme.textPrimary,
@@ -283,17 +216,17 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                 const SizedBox(height: 24),
                 
                 Text(
-                  'Reason for Appointment',
+                  langService.translate('reason_for_appointment'),
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _reasonController,
                   maxLines: 4,
-                  decoration: const InputDecoration(
-                    hintText: 'Briefly describe your purpose (e.g., Project discussion)',
+                  decoration: InputDecoration(
+                    hintText: langService.translate('purpose_hint'),
                   ),
-                  validator: (val) => val == null || val.isEmpty ? 'Please enter a reason' : null,
+                  validator: (val) => val == null || val.isEmpty ? langService.translate('please_select_reason') : null,
                 ),
                 
                 const SizedBox(height: 40),
@@ -302,8 +235,9 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                   onPressed: _isBooking ? null : _handleBooking,
                   child: _isBooking 
                     ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : const Text('Confirm Booking'),
+                    : Text(langService.translate('confirm_booking')),
                 ),
+                const SizedBox(height: 40),
               ],
             ),
           ),

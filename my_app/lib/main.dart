@@ -6,8 +6,10 @@ import 'package:provider/provider.dart';
 import 'theme/app_theme.dart';
 import 'services/auth_service.dart';
 import 'services/notification_service.dart';
-import 'screens/login_screen.dart';
-import 'screens/dashboard_screen.dart';
+import 'package:my_app/screens/login_screen.dart';
+import 'package:my_app/screens/dashboard_screen.dart';
+import 'package:my_app/screens/splash_screen.dart';
+import 'services/language_service.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -28,6 +30,7 @@ void main() async {
         providers: [
           ChangeNotifierProvider(create: (_) => ThemeService()),
           ChangeNotifierProvider(create: (_) => NotificationService()),
+          ChangeNotifierProvider(create: (_) => LanguageService()),
         ],
         child: const CampusFlowApp(),
       ),
@@ -51,20 +54,7 @@ class CampusFlowApp extends StatelessWidget {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeService.themeMode,
-      home: StreamBuilder<dynamic>(
-        stream: AuthService().authStateChanges,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
-            );
-          }
-          if (snapshot.hasData && snapshot.data != null) {
-            return const DashboardScreen();
-          }
-          return const LoginScreen();
-        },
-      ),
+      home: SplashScreen(),
     );
   }
 }

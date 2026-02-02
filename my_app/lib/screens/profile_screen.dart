@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../services/language_service.dart';
 import '../theme/app_theme.dart';
 import '../services/auth_service.dart';
 import '../services/api_service.dart';
@@ -60,30 +62,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final yearController = TextEditingController(text: _userProfile?['yearOfStudy'] ?? '1st Year');
     final String role = _userProfile?['role'] ?? 'Student';
 
+    final langService = Provider.of<LanguageService>(context, listen: false);
     return showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Edit Profile'),
+        title: Text(langService.translate('edit_profile')),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Full Name')),
-              TextField(controller: deptController, decoration: const InputDecoration(labelText: 'Department')),
-              TextField(controller: idController, decoration: const InputDecoration(labelText: 'ID Number / Student ID')),
-              TextField(controller: phoneController, decoration: const InputDecoration(labelText: 'Phone Number')),
+              TextField(controller: nameController, decoration: InputDecoration(labelText: langService.translate('full_name'))),
+              TextField(controller: deptController, decoration: InputDecoration(labelText: langService.translate('department'))),
+              TextField(controller: idController, decoration: InputDecoration(labelText: langService.translate('id_number'))),
+              TextField(controller: phoneController, decoration: InputDecoration(labelText: langService.translate('phone_number'))),
               if (role == 'Student')
-                TextField(controller: yearController, decoration: const InputDecoration(labelText: 'Year of Study (e.g. 2nd Year)')),
+                TextField(controller: yearController, decoration: InputDecoration(labelText: langService.translate('year_of_study'))),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context), child: Text(langService.translate('cancel'))),
           ElevatedButton(
             onPressed: () async {
               final user = AuthService().currentUser;
               if (user != null) {
-                // Show a loading indicator
                 showDialog(
                   context: context,
                   barrierDismissible: false,
@@ -102,16 +104,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     'email': user.email,
                   });
                   
-                  // SYNC: Update Firebase display name as well for consistent auth display
                   await user.updateDisplayName(nameController.text.trim());
                   
                   if (mounted) {
                     Navigator.pop(context); // Pop loading
                     Navigator.pop(context); // Pop dialog
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Profile updated successfully!'), backgroundColor: Colors.green),
+                      SnackBar(content: Text(langService.translate('profile_updated')), backgroundColor: Colors.green),
                     );
-                    _loadData(); // Refresh UI
+                    _loadData();
                   }
                 } catch (e) {
                   if (mounted) {
@@ -123,7 +124,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 }
               }
             },
-            child: const Text('Save'),
+            child: Text(langService.translate('save')),
           ),
         ],
       ),
@@ -144,7 +145,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
     
     if (picked != null) {
-      // Save immediately
       final newAvailability = Map<String, dynamic>.from(availability);
       if (isStart) {
          newAvailability['startHour'] = picked.hour;
@@ -159,7 +159,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final availability = _userProfile?['availability'] ?? {};
     List<dynamic> days = List.from(availability['days'] ?? [1, 2, 3, 4, 5]);
     
-    // Toggle
     if (days.contains(dayIndex)) {
       days.remove(dayIndex);
     } else {
@@ -179,7 +178,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _updateAvailability(Map<String, dynamic> newAvailability) async {
-    // Optimistic update
     setState(() {
       if (_userProfile != null) {
         _userProfile!['availability'] = newAvailability;
@@ -200,11 +198,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildAvailabilityCard() {
+    final langService = Provider.of<LanguageService>(context);
     final availability = _userProfile?['availability'] ?? {};
     final bool isEnabled = availability['enabled'] ?? true;
     final int startHour = availability['startHour'] ?? 9;
     final int endHour = availability['endHour'] ?? 17;
-    final List<dynamic> days = availability['days'] ?? [1, 2, 3, 4, 5]; // 1=Mon
+    final List<dynamic> days = availability['days'] ?? [1, 2, 3, 4, 5];
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -229,7 +228,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: const Icon(Icons.access_time_filled, color: AppTheme.secondaryColor),
                   ),
                   const SizedBox(width: 12),
-                  const Text("Office Hours", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  Text(langService.translate('office_hours'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 ],
               ),
               Switch(
@@ -241,12 +240,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           if (isEnabled) ...[
             const SizedBox(height: 16),
-            const Text("Working Days", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+            Text(langService.translate('working_days'), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
               children: ['M', 'T', 'W', 'T', 'F', 'S', 'S'].asMap().entries.map((entry) {
-                final int idx = entry.key + 1; // 1-based index
+                final int idx = entry.key + 1;
                 final bool isSelected = days.contains(idx);
                 return GestureDetector(
                   onTap: () => _toggleDay(idx),
@@ -271,7 +270,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               }).toList(),
             ),
             const SizedBox(height: 16),
-            const Text("Time Range", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+            Text(langService.translate('time_range'), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
             const SizedBox(height: 8),
             Row(
               children: [
@@ -281,7 +280,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: Text('${startHour > 12 ? startHour - 12 : startHour} ${startHour >= 12 ? 'PM' : 'AM'}'),
                   ),
                 ),
-                const Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Text("TO")),
+                Padding(padding: const EdgeInsets.symmetric(horizontal: 8), child: Text(langService.translate('to'))),
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () => _selectTime(false),
@@ -291,9 +290,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ],
             )
           ] else ...[
-             const Padding(
-               padding: EdgeInsets.only(top: 8),
-               child: Text("You are currently not accepting new appointments.", style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic)),
+             Padding(
+               padding: const EdgeInsets.only(top: 8),
+               child: Text(langService.translate('not_accepting_appointments'), style: const TextStyle(color: Colors.grey, fontStyle: FontStyle.italic)),
              )
           ]
         ],
@@ -303,14 +302,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final langService = Provider.of<LanguageService>(context);
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    // Explicitly use values from _userProfile to ensure it reflects current MongoDB state
     final String name = _userProfile?['name'] ?? AuthService().displayName;
     final String role = _userProfile?['role'] ?? 'Student';
-    final String idNum = _userProfile?['idNumber'] ?? (role == 'Faculty' ? 'PROF-001' : 'CF2024001');
+    final String idNum = _userProfile?['idNumber'] ?? (role == 'Faculty' ? 'PROF-001' : '23IT007');
     final String dept = _userProfile?['department'] ?? 'Computer Science';
     final String email = _userProfile?['email'] ?? AuthService().userEmail;
     final String phone = _userProfile?['phone'] ?? '+91 98765 43210';
@@ -321,7 +320,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: Column(
           children: [
             const SizedBox(height: 20),
-            // Profile Header
             Center(
               child: Column(
                 children: [
@@ -358,12 +356,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    name,
+                    langService.tryTranslate(name),
                     style: Theme.of(context).textTheme.headlineMedium,
                     textAlign: TextAlign.center,
                   ),
                   Text(
-                    '${role == 'Faculty' ? 'Faculty' : 'Student'} ID: $idNum',
+                    '${langService.translate(role.toLowerCase())} ID: $idNum',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
                   ),
                 ],
@@ -372,41 +370,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
             
             const SizedBox(height: 32),
             
-            // Stats Row
             Row(
               children: [
-                _buildStatCard(context, _total.toString().padLeft(2, '0'), 'Total', AppTheme.primaryColor),
+                _buildStatCard(context, _total.toString().padLeft(2, '0'), langService.translate('total'), AppTheme.primaryColor),
                 const SizedBox(width: 12),
-                _buildStatCard(context, _pending.toString().padLeft(2, '0'), 'Pending', AppTheme.warningColor),
+                _buildStatCard(context, _pending.toString().padLeft(2, '0'), langService.translate('pending'), AppTheme.warningColor),
                 const SizedBox(width: 12),
-                _buildStatCard(context, _completed.toString().padLeft(2, '0'), 'Completed', AppTheme.successColor),
+                _buildStatCard(context, _completed.toString().padLeft(2, '0'), langService.translate('completed'), AppTheme.successColor),
               ],
             ),
             
             const SizedBox(height: 32),
             
-            // Settings List
             if (role == 'Faculty') ...[
               _buildAvailabilityCard(),
               const SizedBox(height: 24),
             ],
             
-            _buildSettingTile(Icons.school_outlined, 'Academic Details', dept),
+            _buildSettingTile(Icons.school_outlined, langService.translate('academic_details'), langService.tryTranslate(dept)),
             if (role == 'Student' && _userProfile?['yearOfStudy'] != null)
-              _buildSettingTile(Icons.calendar_view_day, 'Year of Study', _userProfile!['yearOfStudy']),
-            _buildSettingTile(Icons.email_outlined, 'Email Address', email),
-            _buildSettingTile(Icons.phone_outlined, 'Phone Number', phone),
-            _buildSettingTile(Icons.lock_outline, 'Security', 'Password & Privacy'),
+              _buildSettingTile(Icons.calendar_view_day, langService.translate('year_of_study'), langService.tryTranslate(_userProfile!['yearOfStudy'])),
+            _buildSettingTile(Icons.email_outlined, langService.translate('email_address'), email),
+            _buildSettingTile(Icons.phone_outlined, langService.translate('phone_number'), phone),
+            _buildSettingTile(Icons.lock_outline, langService.translate('security'), langService.translate('password_privacy')),
             
             const SizedBox(height: 24),
             
-            // Logout
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
                 onPressed: () => AuthService().signOut(),
                 icon: const Icon(Icons.logout, color: AppTheme.errorColor),
-                label: const Text('Logout', style: TextStyle(color: AppTheme.errorColor)),
+                label: Text(langService.translate('logout'), style: const TextStyle(color: AppTheme.errorColor)),
                 style: OutlinedButton.styleFrom(
                   side: const BorderSide(color: AppTheme.errorColor),
                   padding: const EdgeInsets.symmetric(vertical: 12),
@@ -424,7 +419,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
+          color: color.withOpacity(0.1),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
@@ -449,7 +444,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4)),
+            BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
           ],
         ),
         child: Row(

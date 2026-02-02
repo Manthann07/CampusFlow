@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
+import '../services/language_service.dart';
 
 class AppointmentCard extends StatelessWidget {
   final String title;
@@ -43,7 +45,7 @@ class AppointmentCard extends StatelessWidget {
                     width: 56,
                     height: 56,
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                      color: AppTheme.primaryColor.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Icon(
@@ -61,14 +63,14 @@ class AppointmentCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          title,
+                          Provider.of<LanguageService>(context).tryTranslate(title),
                           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          subtitle,
+                          Provider.of<LanguageService>(context).tryTranslate(subtitle),
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: AppTheme.textSecondary,
                           ),
@@ -100,22 +102,22 @@ class AppointmentCard extends StatelessWidget {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: statusColor.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          status.toUpperCase(),
-                          style: TextStyle(
-                            color: statusColor,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: statusColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      Provider.of<LanguageService>(context).translate(status.toLowerCase()).toUpperCase(),
+                      style: TextStyle(
+                        color: statusColor,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.5,
                       ),
+                    ),
+                  ),
                       if (trailing != null) ...[
                         const SizedBox(height: 8),
                         trailing!,
@@ -141,7 +143,7 @@ class AppointmentCard extends StatelessWidget {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Faculty Note: $rejectionReason',
+                          '${Provider.of<LanguageService>(context).translate('faculty_note')}: ${Provider.of<LanguageService>(context).tryTranslate(rejectionReason!)}',
                           style: const TextStyle(
                             color: Colors.red,
                             fontSize: 12,
