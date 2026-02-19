@@ -383,34 +383,119 @@ class _DashboardScreenState extends State<DashboardScreen> {
           separatorBuilder: (context, index) => const SizedBox(height: 12),
           itemBuilder: (context, index) {
             final faculty = faculties[index];
+            final String liveStatus = faculty['liveStatus'] ?? 'in_office';
+            final String room = faculty['roomNumber'] ?? '';
+            final String floor = faculty['floor'] ?? '';
+
+            Color statusColor = AppTheme.successColor;
+            IconData statusIcon = Icons.check_circle;
+            if (liveStatus == 'in_meeting')  { statusColor = AppTheme.warningColor; statusIcon = Icons.people; }
+            if (liveStatus == 'on_leave')    { statusColor = Colors.orange;          statusIcon = Icons.beach_access; }
+            if (liveStatus == 'unavailable') { statusColor = AppTheme.errorColor;    statusIcon = Icons.do_not_disturb_on; }
+
             return Card(
               elevation: 4,
               shadowColor: Colors.black12,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              child: ListTile(
-                contentPadding: const EdgeInsets.all(16),
-                leading: CircleAvatar(
-                  backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
-                  child: const Icon(Icons.person, color: AppTheme.primaryColor),
-                ),
-                title: Text(langService.tryTranslate(faculty['name'] ?? 'Unknown Faculty'), 
-                  style: const TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: Text(langService.tryTranslate(faculty['department'] ?? 'Department unavailable')),
-                trailing: _userRole == 'Student' 
-                  ? ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        minimumSize: Size.zero,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 26,
+                          backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
+                          child: Text(
+                            (faculty['name'] ?? 'F').substring(0, 1).toUpperCase(),
+                            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppTheme.primaryColor),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                langService.tryTranslate(faculty['name'] ?? 'Unknown Faculty'),
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                              ),
+                              Text(
+                                langService.tryTranslate(faculty['department'] ?? 'Department unavailable'),
+                                style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Live status badge
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: statusColor.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.circle, size: 7, color: statusColor),
+                              const SizedBox(width: 4),
+                              Text(
+                                langService.translate(liveStatus),
+                                style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    // Room & Floor info
+                    if (room.isNotEmpty || floor.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: AppTheme.surfaceColor,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.location_on_outlined, size: 14, color: AppTheme.accentColor),
+                            const SizedBox(width: 4),
+                            Text(
+                              [
+                                if (room.isNotEmpty) '${langService.translate("room_number")} $room',
+                                if (floor.isNotEmpty) '${langService.translate("floor")}: $floor',
+                              ].join('  •  '),
+                              style: TextStyle(fontSize: 11, color: Colors.grey[700], fontWeight: FontWeight.w500),
+                            ),
+                          ],
+                        ),
                       ),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const BookAppointmentScreen()),
-                        );
-                      }, 
-                      child: Text(langService.translate('book')),
-                    )
-                  : null,
+                    ],
+                    if (_userRole == 'Student') ...[
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          icon: const Icon(Icons.calendar_today, size: 16),
+                          label: Text(langService.translate('book_with_faculty')),
+                          onPressed: liveStatus == 'unavailable' || liveStatus == 'on_leave' ? null : () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => const BookAppointmentScreen()),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
             );
           },

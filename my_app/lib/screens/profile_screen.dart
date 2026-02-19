@@ -199,6 +199,223 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  // --- LIVE STATUS ---
+  Future<void> _updateLiveStatus(String newStatus) async {
+    setState(() => _userProfile?['liveStatus'] = newStatus);
+    try {
+      final user = AuthService().currentUser;
+      if (user != null) {
+        await ApiService.saveUser({'uid': user.uid, 'liveStatus': newStatus});
+        if (mounted) {
+          final langService = Provider.of<LanguageService>(context, listen: false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(langService.translate('status_updated')), backgroundColor: AppTheme.successColor),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint("Error updating live status: $e");
+    }
+  }
+
+  Future<void> _updateLocation(String room, String floor) async {
+    setState(() {
+      _userProfile?['roomNumber'] = room;
+      _userProfile?['floor'] = floor;
+    });
+    try {
+      final user = AuthService().currentUser;
+      if (user != null) {
+        await ApiService.saveUser({'uid': user.uid, 'roomNumber': room, 'floor': floor});
+        if (mounted) {
+          final langService = Provider.of<LanguageService>(context, listen: false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(langService.translate('location_updated')), backgroundColor: AppTheme.successColor),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint("Error updating location: $e");
+    }
+  }
+
+  void _showStatusPicker() {
+    final langService = Provider.of<LanguageService>(context, listen: false);
+    final statuses = [
+      {'key': 'in_office',  'icon': Icons.check_circle,        'color': AppTheme.successColor},
+      {'key': 'in_meeting', 'icon': Icons.people,               'color': AppTheme.warningColor},
+      {'key': 'on_leave',   'icon': Icons.beach_access,         'color': Colors.orange},
+      {'key': 'unavailable','icon': Icons.do_not_disturb_on,    'color': AppTheme.errorColor},
+    ];
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(langService.translate('live_status'),
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            ...statuses.map((s) {
+              final isSelected = (_userProfile?['liveStatus'] ?? 'in_office') == s['key'];
+              return ListTile(
+                leading: Icon(s['icon'] as IconData, color: s['color'] as Color),
+                title: Text(langService.translate(s['key'] as String),
+                    style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+                trailing: isSelected ? Icon(Icons.check, color: AppTheme.primaryColor) : null,
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _updateLiveStatus(s['key'] as String);
+                },
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showLocationDialog() {
+    final langService = Provider.of<LanguageService>(context, listen: false);
+    final roomCtrl = TextEditingController(text: _userProfile?['roomNumber'] ?? '');
+    final floorCtrl = TextEditingController(text: _userProfile?['floor'] ?? '');
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(langService.translate('cabin_location')),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: roomCtrl,
+              decoration: InputDecoration(
+                labelText: langService.translate('room_number'),
+                hintText: langService.translate('room_floor_hint'),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: floorCtrl,
+              decoration: InputDecoration(
+                labelText: langService.translate('floor'),
+                hintText: langService.translate('floor_hint'),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(langService.translate('cancel'))),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _updateLocation(roomCtrl.text.trim(), floorCtrl.text.trim());
+            },
+            child: Text(langService.translate('save')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLiveStatusCard() {
+    final langService = Provider.of<LanguageService>(context);
+    final String status = _userProfile?['liveStatus'] ?? 'in_office';
+    Color statusColor = AppTheme.successColor;
+    IconData statusIcon = Icons.check_circle;
+    if (status == 'in_meeting')  { statusColor = AppTheme.warningColor; statusIcon = Icons.people; }
+    if (status == 'on_leave')    { statusColor = Colors.orange;          statusIcon = Icons.beach_access; }
+    if (status == 'unavailable') { statusColor = AppTheme.errorColor;    statusIcon = Icons.do_not_disturb_on; }
+
+    return GestureDetector(
+      onTap: _showStatusPicker,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: statusColor.withOpacity(0.12), borderRadius: BorderRadius.circular(12)),
+              child: Icon(statusIcon, color: statusColor),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(langService.translate('live_status'),
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  Text(langService.translate(status),
+                      style: TextStyle(color: statusColor, fontWeight: FontWeight.w600, fontSize: 13)),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: statusColor.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.circle, size: 8, color: statusColor),
+                  const SizedBox(width: 4),
+                  Text('LIVE', style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLocationCard() {
+    final langService = Provider.of<LanguageService>(context);
+    final room = _userProfile?['roomNumber'] ?? '—';
+    final floor = _userProfile?['floor'] ?? '—';
+    return GestureDetector(
+      onTap: _showLocationDialog,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: AppTheme.accentColor.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+              child: const Icon(Icons.location_on_outlined, color: AppTheme.accentColor),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(langService.translate('cabin_location'),
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  Text('${langService.translate("room_number")} $room  •  ${langService.translate("floor")}: $floor',
+                      style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                ],
+              ),
+            ),
+            const Icon(Icons.edit_outlined, size: 18, color: AppTheme.textLight),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildAvailabilityCard() {
     final langService = Provider.of<LanguageService>(context);
     final availability = _userProfile?['availability'] ?? {};
@@ -369,6 +586,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const SizedBox(height: 32),
                 
                 if (role == 'Faculty') ...[
+                  _buildLiveStatusCard(),
+                  const SizedBox(height: 16),
+                  _buildLocationCard(),
+                  const SizedBox(height: 16),
                   _buildAvailabilityCard(),
                   const SizedBox(height: 24),
                 ],
