@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 
 class CampusNotification {
   final String id;
@@ -21,18 +22,23 @@ class NotificationService extends ChangeNotifier {
   factory NotificationService() => _instance;
   NotificationService._internal();
 
+  final _newNotificationController = StreamController<CampusNotification>.broadcast();
+  Stream<CampusNotification> get onNewNotification => _newNotificationController.stream;
+
   final List<CampusNotification> _notifications = [];
   List<CampusNotification> get notifications => List.unmodifiable(_notifications);
 
   int get unreadCount => _notifications.where((n) => !n.isRead).length;
 
   void addNotification(String title, String body) {
-    _notifications.insert(0, CampusNotification(
+    final notification = CampusNotification(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       title: title,
       body: body,
       timestamp: DateTime.now(),
-    ));
+    );
+    _notifications.insert(0, notification);
+    _newNotificationController.add(notification);
     notifyListeners();
   }
 

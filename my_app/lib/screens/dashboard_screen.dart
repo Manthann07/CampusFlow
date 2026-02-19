@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:provider/provider.dart';
 import 'package:my_app/services/language_service.dart';
 import 'package:my_app/theme/app_theme.dart';
@@ -26,14 +27,45 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int _selectedIndex = 0;
   String? _userRole;
   bool _isLoadingRole = true;
+  StreamSubscription? _notificationSubscription;
 
   @override
   void initState() {
     super.initState();
+    
+    // Listen for new notifications to show snackbars
+    _notificationSubscription = NotificationService().onNewNotification.listen((notification) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(notification.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                Text(notification.body, style: const TextStyle(fontSize: 12)),
+              ],
+            ),
+            backgroundColor: AppTheme.primaryColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            margin: const EdgeInsets.all(16),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    });
+
     // Small delay to let Firebase state settle
     Future.delayed(const Duration(milliseconds: 500), () {
       if (mounted) _loadUserRole();
     });
+  }
+
+  @override
+  void dispose() {
+    _notificationSubscription?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadUserRole() async {
@@ -198,7 +230,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             const SizedBox(height: 16),
             
-            _buildRecentAppointmentsList(),
+            _buildRecentAppointmentsList(langService),
             
             const SizedBox(height: 24),
           ],
@@ -207,7 +239,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildRecentAppointmentsList() {
+  Widget _buildRecentAppointmentsList(LanguageService langService) {
     return StreamBuilder<List<Map<String, dynamic>>>(
       stream: AppointmentService().getAppointments(_userRole ?? 'Student'),
       builder: (context, snapshot) {
@@ -399,7 +431,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ? appointment['studentName'] ?? 'Student'
         : appointment['facultyName'] ?? 'Faculty',
       subtitle: appointment['subject'] ?? appointment['reason'] ?? 'Meeting',
-      dateTime: '${appointment['date']}, ${appointment['time']}',
+      dateTime: () {
+        String date = appointment['date'] ?? '';
+        if (date.contains('T')) {
+          try {
+            DateTime dt = DateTime.parse(date);
+            date = '${dt.day}/${dt.month}/${dt.year}';
+          } catch (_) {}
+        }
+        return '$date, ${appointment['time']}';
+      }(),
       status: status,
       statusColor: statusColor,
       rejectionReason: appointment['rejectionReason'],
@@ -409,7 +450,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ) : null,
       onTap: () {
         if (_userRole == 'Faculty' && (status == 'pending' || status == 'Pending')) {
-          _showApprovalDialog(appointment['id']);
+          _showApprovalDialog(appointment);
         } else if (_userRole == 'Student') {
           Navigator.push(
             context,
@@ -448,86 +489,117 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // Removed _showEditDialog as it's now a full screen
 
 
-  void _showApprovalDialog(String appointmentId) {
+  void _showApprovalDialog(Map<String, dynamic> appointment) {
     final langService = Provider.of<LanguageService>(context, listen: false);
+    final String appointmentId = appointment['id'];
+    final TextEditingController facultyTimeController = TextEditingController(
+      text: appointment['time']?.toString().split(' ').first ?? '9:10'
+    );
+    final TextEditingController facultyNoteController = TextEditingController(
+      text: appointment['rejectionReason'] ?? ''
+    );
+    String facultyPeriod = appointment['time']?.toString().split(' ').last ?? 'AM';
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(langService.translate('manage_appointment')),
-        content: Text(langService.translate('approve_reject_question')),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context); // Close current dialog
-              _showRejectionReasonDialog(appointmentId); // Show nested reason dialog
-            },
-            child: Text(langService.translate('rejected'), style: const TextStyle(color: Colors.red)),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text(langService.translate('manage_appointment')),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(langService.translate('approve_reject_question')),
+                const SizedBox(height: 16),
+                const Text('Set/Confirm Time:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: facultyTimeController,
+                        decoration: InputDecoration(
+                          hintText: '9:10',
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        keyboardType: TextInputType.datetime,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Radio<String>(
+                          value: 'AM',
+                          groupValue: facultyPeriod,
+                          activeColor: AppTheme.primaryColor,
+                          onChanged: (val) => setState(() => facultyPeriod = val!),
+                        ),
+                        const Text('AM', style: TextStyle(fontSize: 12)),
+                        Radio<String>(
+                          value: 'PM',
+                          groupValue: facultyPeriod,
+                          activeColor: AppTheme.primaryColor,
+                          onChanged: (val) => setState(() => facultyPeriod = val!),
+                        ),
+                        const Text('PM', style: TextStyle(fontSize: 12)),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                const Text('Message to Student:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: facultyNoteController,
+                  maxLines: 3,
+                  decoration: InputDecoration(
+                    hintText: 'e.g. Please bring your project report...',
+                    contentPadding: const EdgeInsets.all(12),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
+              ],
+            ),
           ),
-          ElevatedButton(
-            onPressed: () {
-              AppointmentService().updateAppointment(appointmentId, {'status': 'approved'});
-              Navigator.pop(context);
-            },
-            child: Text(langService.translate('approved')),
-          ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () {
+                final note = facultyNoteController.text.trim();
+                if (note.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(langService.translate('provide_rejection_reason'))),
+                  );
+                  return;
+                }
+                AppointmentService().updateAppointment(appointmentId, {
+                  'status': 'rejected',
+                  'rejectionReason': note,
+                });
+                Navigator.pop(context);
+              },
+              child: Text(langService.translate('rejected'), style: const TextStyle(color: Colors.red)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final finalTime = '${facultyTimeController.text.trim()} $facultyPeriod';
+                AppointmentService().updateAppointment(appointmentId, {
+                  'status': 'approved',
+                  'time': finalTime,
+                  'rejectionReason': facultyNoteController.text.trim(),
+                });
+                Navigator.pop(context);
+              },
+              child: Text(langService.translate('approved')),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  void _showRejectionReasonDialog(String appointmentId) {
-    final langService = Provider.of<LanguageService>(context, listen: false);
-    final TextEditingController reasonController = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(langService.translate('rejection_reason')),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(langService.translate('provide_rejection_reason')),
-            const SizedBox(height: 16),
-            TextField(
-              controller: reasonController,
-              maxLines: 3,
-              decoration: InputDecoration(
-                hintText: 'e.g. ${langService.tryTranslate('not_possible_on_that_day')}...',
-                border: const OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(langService.translate('cancel')),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (reasonController.text.trim().isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(langService.translate('please_select_reason'))),
-                );
-                return;
-              }
-              AppointmentService().updateAppointment(appointmentId, {
-                'status': 'rejected',
-                'rejectionReason': reasonController.text.trim(),
-              });
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(langService.translate('rejected')), backgroundColor: Colors.orange),
-                );
-                Navigator.pop(context);
-              }
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
-            child: Text(langService.translate('confirm_reject')),
-          ),
-        ],
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {

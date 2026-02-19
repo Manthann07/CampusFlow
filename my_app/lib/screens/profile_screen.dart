@@ -4,6 +4,8 @@ import '../services/language_service.dart';
 import '../theme/app_theme.dart';
 import '../services/auth_service.dart';
 import '../services/api_service.dart';
+import 'package:my_app/screens/login_screen.dart';
+import 'package:my_app/screens/security_settings_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -269,26 +271,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 );
               }).toList(),
             ),
-            const SizedBox(height: 16),
-            Text(langService.translate('time_range'), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => _selectTime(true),
-                    child: Text('${startHour > 12 ? startHour - 12 : startHour} ${startHour >= 12 ? 'PM' : 'AM'}'),
-                  ),
-                ),
-                Padding(padding: const EdgeInsets.symmetric(horizontal: 8), child: Text(langService.translate('to'))),
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => _selectTime(false),
-                    child: Text('${endHour > 12 ? endHour - 12 : endHour} ${endHour >= 12 ? 'PM' : 'AM'}'),
-                  ),
-                ),
-              ],
-            )
           ] else ...[
              Padding(
                padding: const EdgeInsets.only(top: 8),
@@ -314,101 +296,137 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final String email = _userProfile?['email'] ?? AuthService().userEmail;
     final String phone = _userProfile?['phone'] ?? '+91 98765 43210';
 
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          children: [
-            const SizedBox(height: 20),
-            Center(
-              child: Column(
-                children: [
-                  Stack(
+    return Scaffold(
+      body: RefreshIndicator(
+        onRefresh: _loadData,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              children: [
+                const SizedBox(height: 20),
+                Center(
+                  child: Column(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: AppTheme.primaryColor, width: 2),
-                        ),
-                        child: const CircleAvatar(
-                          radius: 60,
-                          backgroundColor: AppTheme.surfaceColor,
-                          child: Icon(Icons.person, size: 80, color: AppTheme.primaryColor),
-                        ),
-                      ),
-                      Positioned(
-                        bottom: 0,
-                        right: 4,
-                        child: GestureDetector(
-                          onTap: _showEditProfileDialog,
-                          child: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: const BoxDecoration(
-                              color: AppTheme.primaryColor,
+                      Stack(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
                               shape: BoxShape.circle,
+                              border: Border.all(color: AppTheme.primaryColor, width: 2),
                             ),
-                            child: const Icon(Icons.edit, size: 20, color: Colors.white),
+                            child: const CircleAvatar(
+                              radius: 60,
+                              backgroundColor: AppTheme.surfaceColor,
+                              child: Icon(Icons.person, size: 80, color: AppTheme.primaryColor),
+                            ),
                           ),
-                        ),
+                          Positioned(
+                            bottom: 0,
+                            right: 4,
+                            child: GestureDetector(
+                              onTap: _showEditProfileDialog,
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: const BoxDecoration(
+                                  color: AppTheme.primaryColor,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.edit, size: 20, color: Colors.white),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        langService.tryTranslate(name),
+                        style: Theme.of(context).textTheme.headlineMedium,
+                        textAlign: TextAlign.center,
+                      ),
+                      Text(
+                        '${langService.translate(role.toLowerCase())} ID: $idNum',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    langService.tryTranslate(name),
-                    style: Theme.of(context).textTheme.headlineMedium,
-                    textAlign: TextAlign.center,
-                  ),
-                  Text(
-                    '${langService.translate(role.toLowerCase())} ID: $idNum',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
-                  ),
+                ),
+                
+                const SizedBox(height: 32),
+                
+                Row(
+                  children: [
+                    _buildStatCard(context, _total.toString().padLeft(2, '0'), langService.translate('total'), AppTheme.primaryColor),
+                    const SizedBox(width: 12),
+                    _buildStatCard(context, _pending.toString().padLeft(2, '0'), langService.translate('pending'), AppTheme.warningColor),
+                    const SizedBox(width: 12),
+                    _buildStatCard(context, _completed.toString().padLeft(2, '0'), langService.translate('completed'), AppTheme.successColor),
+                  ],
+                ),
+                
+                const SizedBox(height: 32),
+                
+                if (role == 'Faculty') ...[
+                  _buildAvailabilityCard(),
+                  const SizedBox(height: 24),
                 ],
-              ),
-            ),
-            
-            const SizedBox(height: 32),
-            
-            Row(
-              children: [
-                _buildStatCard(context, _total.toString().padLeft(2, '0'), langService.translate('total'), AppTheme.primaryColor),
-                const SizedBox(width: 12),
-                _buildStatCard(context, _pending.toString().padLeft(2, '0'), langService.translate('pending'), AppTheme.warningColor),
-                const SizedBox(width: 12),
-                _buildStatCard(context, _completed.toString().padLeft(2, '0'), langService.translate('completed'), AppTheme.successColor),
+                
+                _buildSettingTile(Icons.school_outlined, langService.translate('academic_details'), langService.tryTranslate(dept), 
+                  onTap: _showEditProfileDialog),
+                if (role == 'Student' && _userProfile?['yearOfStudy'] != null)
+                  _buildSettingTile(Icons.calendar_view_day, langService.translate('year_of_study'), langService.tryTranslate(_userProfile!['yearOfStudy']),
+                    onTap: _showEditProfileDialog),
+                _buildSettingTile(Icons.email_outlined, langService.translate('email_address'), email,
+                  onTap: () => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(langService.translate('edit_via_profile'))))),
+                _buildSettingTile(Icons.phone_outlined, langService.translate('phone_number'), phone,
+                  onTap: _showEditProfileDialog),
+                _buildSettingTile(Icons.lock_outline, langService.translate('security'), langService.translate('password_privacy'),
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SecuritySettingsScreen()))),
+                
+                const SizedBox(height: 24),
+                
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () async {
+                          await AuthService().signOut();
+                          if (mounted) {
+                            Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+                              MaterialPageRoute(builder: (_) => const LoginScreen()),
+                              (route) => false,
+                            );
+                          }
+                        },
+                        icon: const Icon(Icons.logout, color: AppTheme.errorColor),
+                        label: Text(langService.translate('logout'), style: const TextStyle(color: AppTheme.errorColor)),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: AppTheme.errorColor),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    GestureDetector(
+                      onTap: _loadData,
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppTheme.primaryColor.withOpacity(0.2)),
+                        ),
+                        child: const Icon(Icons.refresh, color: AppTheme.primaryColor),
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
-            
-            const SizedBox(height: 32),
-            
-            if (role == 'Faculty') ...[
-              _buildAvailabilityCard(),
-              const SizedBox(height: 24),
-            ],
-            
-            _buildSettingTile(Icons.school_outlined, langService.translate('academic_details'), langService.tryTranslate(dept)),
-            if (role == 'Student' && _userProfile?['yearOfStudy'] != null)
-              _buildSettingTile(Icons.calendar_view_day, langService.translate('year_of_study'), langService.tryTranslate(_userProfile!['yearOfStudy'])),
-            _buildSettingTile(Icons.email_outlined, langService.translate('email_address'), email),
-            _buildSettingTile(Icons.phone_outlined, langService.translate('phone_number'), phone),
-            _buildSettingTile(Icons.lock_outline, langService.translate('security'), langService.translate('password_privacy')),
-            
-            const SizedBox(height: 24),
-            
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () => AuthService().signOut(),
-                icon: const Icon(Icons.logout, color: AppTheme.errorColor),
-                label: Text(langService.translate('logout'), style: const TextStyle(color: AppTheme.errorColor)),
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: AppTheme.errorColor),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -435,11 +453,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildSettingTile(IconData icon, String title, String subtitle) {
+  Widget _buildSettingTile(IconData icon, String title, String subtitle, {VoidCallback? onTap}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Container(
-        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
@@ -447,28 +464,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
             BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
           ],
         ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppTheme.surfaceColor,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: AppTheme.primaryColor),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surfaceColor,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, color: AppTheme.primaryColor),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      Text(subtitle, style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right, color: AppTheme.textLight, size: 20),
+              ],
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                  Text(subtitle, style: TextStyle(color: Colors.grey[600], fontSize: 13)),
-                ],
-              ),
-            ),
-            const Icon(Icons.chevron_right, color: AppTheme.textLight, size: 20),
-          ],
+          ),
         ),
       ),
     );

@@ -16,9 +16,10 @@ class BookAppointmentScreen extends StatefulWidget {
 class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
   final _formKey = GlobalKey<FormState>();
   final _reasonController = TextEditingController();
+  final _timeController = TextEditingController(text: '9:10');
   DateTime? _selectedDate;
   Map<String, dynamic>? _selectedFaculty;
-  String? _selectedTime;
+  String _period = 'AM';
   bool _isLoadingFaculty = true;
   bool _isBooking = false;
   List<Map<String, dynamic>> _faculties = [];
@@ -29,9 +30,16 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
     _loadFaculties();
   }
 
+  @override
+  void dispose() {
+    _reasonController.dispose();
+    _timeController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadFaculties() async {
     try {
-      final faculties = await ApiService.fetchAllFaculties();
+      final faculties = await ApiService.fetchFaculties();
       if (mounted) {
         setState(() {
           _faculties = faculties;
@@ -48,41 +56,26 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
     }
   }
 
-  List<String> get _timeSlots {
-    if (_selectedFaculty == null) return [];
-    
-    final availability = _selectedFaculty?['availability'];
-    if (availability == null || !(availability['enabled'] ?? true)) {
-      return [];
-    }
-
-    final int start = availability['startHour'] ?? 9;
-    final int end = availability['endHour'] ?? 17;
-    
-    List<String> slots = [];
-    for (int i = start; i < end; i++) {
-        final String hourStr = i > 12 ? '${i - 12}:00 PM' : '$i:00 ${i == 12 ? 'PM' : 'AM'}';
-        slots.add(hourStr);
-    }
-    return slots;
-  }
-
   Future<void> _handleBooking() async {
     final langService = Provider.of<LanguageService>(context, listen: false);
-    if (_formKey.currentState!.validate() && _selectedFaculty != null && _selectedDate != null && _selectedTime != null) {
+    final timeStr = _timeController.text.trim();
+
+    if (_formKey.currentState!.validate() && _selectedFaculty != null && _selectedDate != null && timeStr.isNotEmpty) {
       setState(() => _isBooking = true);
       try {
         final user = AuthService().currentUser;
         if (user == null) return;
 
+        final fullTime = '$timeStr $_period';
+
         await AppointmentService().createAppointment({
-          'studentUid': user.uid,
+          'studentId': user.uid,
           'studentName': AuthService().displayName,
-          'facultyUid': _selectedFaculty!['uid'],
+          'facultyId': _selectedFaculty!['uid'],
           'facultyName': _selectedFaculty!['name'],
           'date': _selectedDate!.toIso8601String(),
-          'time': _selectedTime,
-          'reason': _reasonController.text.trim(),
+          'time': fullTime,
+          'subject': _reasonController.text.trim(),
           'status': 'pending',
           'createdAt': DateTime.now().toIso8601String(),
         });
@@ -145,7 +138,6 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                   )).toList(),
                   onChanged: (val) => setState(() {
                     _selectedFaculty = val;
-                    _selectedTime = null;
                   }),
                 ),
                 
@@ -191,26 +183,41 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: 12),
-                if (_selectedFaculty == null)
-                  Text(langService.translate('please_select_faculty'), style: const TextStyle(color: Colors.grey))
-                else if (_timeSlots.isEmpty)
-                  Text(langService.translate('not_accepting_appointments'), style: const TextStyle(color: AppTheme.errorColor))
-                else
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: _timeSlots.map((slot) {
-                    final isSelected = _selectedTime == slot;
-                    return ChoiceChip(
-                      label: Text(slot),
-                      selected: isSelected,
-                      onSelected: (val) => setState(() => _selectedTime = val ? slot : null),
-                      selectedColor: AppTheme.primaryColor,
-                      labelStyle: TextStyle(
-                        color: isSelected ? Colors.white : AppTheme.textPrimary,
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _timeController,
+                        decoration: InputDecoration(
+                          hintText: '9:10',
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        keyboardType: TextInputType.datetime,
+                        validator: (val) => val == null || val.isEmpty ? 'Please enter time' : null,
                       ),
-                    );
-                  }).toList(),
+                    ),
+                    const SizedBox(width: 8),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Radio<String>(
+                          value: 'AM',
+                          groupValue: _period,
+                          activeColor: AppTheme.primaryColor,
+                          onChanged: (val) => setState(() => _period = val!),
+                        ),
+                        const Text('AM'),
+                        Radio<String>(
+                          value: 'PM',
+                          groupValue: _period,
+                          activeColor: AppTheme.primaryColor,
+                          onChanged: (val) => setState(() => _period = val!),
+                        ),
+                        const Text('PM'),
+                      ],
+                    ),
+                  ],
                 ),
                 
                 const SizedBox(height: 24),

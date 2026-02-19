@@ -16,27 +16,14 @@ class AppointmentService {
   Map<String, String> _lastKnownStatuses = {};
 
   // CREATE: Add Appointment
-  Future<void> createAppointment({
-    required String facultyId,
-    required String facultyName,
-    required String subject,
-    required String date,
-    required String time,
-  }) async {
+  Future<void> createAppointment(Map<String, dynamic> data) async {
     User? user = _auth.currentUser;
-    String uid = user?.uid ?? 'guest_student';
-    String name = user?.displayName ?? 'Student';
-
-    Map<String, dynamic> data = {
-      'studentId': uid,
-      'studentName': name,
-      'facultyId': facultyId,
-      'facultyName': facultyName,
-      'subject': subject,
-      'date': date,
-      'time': time,
-      'status': 'pending',
-    };
+    String uid = user?.uid ?? data['studentUid'] ?? 'guest_student';
+    
+    // Ensure vital fields are present if not provided
+    data['studentId'] ??= uid;
+    data['studentName'] ??= user?.displayName ?? 'Student';
+    data['status'] ??= 'pending';
 
     await ApiService.createAppointment(data);
     _refreshList(uid, 'Student');
@@ -65,16 +52,18 @@ class AppointmentService {
     try {
       final list = await ApiService.fetchAppointments(uid, role);
       // Map _id (MongoDB) to id for UI stability if needed
+      bool isInitialLoad = _lastKnownStatuses.isEmpty;
+      
       final mappedList = list.map((item) {
         String id = item['_id']?.toString() ?? '';
         item['id'] = id;
         
-        // Notification Logic for Students
-        if (role == 'Student' && id.isNotEmpty) {
+        if (id.isNotEmpty) {
           String currentStatus = item['status']?.toString().toLowerCase() ?? 'pending';
           String? lastStatus = _lastKnownStatuses[id];
 
-          if (lastStatus != null && lastStatus != currentStatus) {
+          // 1. Notification for Students (Status Changes)
+          if (role == 'Student' && lastStatus != null && lastStatus != currentStatus) {
             String facultyName = item['facultyName'] ?? 'Faculty';
             if (currentStatus == 'approved') {
               NotificationService().addNotification(
@@ -88,6 +77,16 @@ class AppointmentService {
               );
             }
           }
+
+          // 2. Notification for Faculty (New Bookings)
+          if (role == 'Faculty' && !isInitialLoad && lastStatus == null) {
+            String studentName = item['studentName'] ?? 'Student';
+            NotificationService().addNotification(
+              'New Booking Request',
+              '$studentName wants to meet you.'
+            );
+          }
+
           _lastKnownStatuses[id] = currentStatus;
         }
 

@@ -15,6 +15,7 @@ class EditAppointmentScreen extends StatefulWidget {
 class _EditAppointmentScreenState extends State<EditAppointmentScreen> {
   late TextEditingController _timeController;
   late TextEditingController _subjectController;
+  String _period = 'AM';
   bool _isUpdating = false;
   Map<String, dynamic>? _freshData;
   bool _isLoading = true;
@@ -22,7 +23,9 @@ class _EditAppointmentScreenState extends State<EditAppointmentScreen> {
   @override
   void initState() {
     super.initState();
-    _timeController = TextEditingController(text: widget.appointment['time']);
+    final timeStr = widget.appointment['time']?.toString() ?? '';
+    _timeController = TextEditingController(text: timeStr.split(' ').first);
+    _period = timeStr.contains('PM') ? 'PM' : 'AM';
     _subjectController = TextEditingController(text: widget.appointment['subject'] ?? widget.appointment['reason'] ?? '');
     _loadFreshData();
   }
@@ -34,7 +37,9 @@ class _EditAppointmentScreenState extends State<EditAppointmentScreen> {
       setState(() {
         _freshData = data ?? widget.appointment;
         _isLoading = false;
-        _timeController.text = _freshData!['time'] ?? '';
+        final freshTime = _freshData!['time']?.toString() ?? '';
+        _timeController.text = freshTime.split(' ').first;
+        _period = freshTime.contains('PM') ? 'PM' : 'AM';
       });
     }
   }
@@ -59,7 +64,7 @@ class _EditAppointmentScreenState extends State<EditAppointmentScreen> {
       await AppointmentService().updateAppointment(
         id,
         {
-          'time': _timeController.text.trim(),
+          'time': '${_timeController.text.trim()} $_period',
           'subject': _subjectController.text.trim(),
         },
       );
@@ -163,12 +168,38 @@ class _EditAppointmentScreenState extends State<EditAppointmentScreen> {
 
               Text('Preferred Time', style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 12),
-              TextField(
-                controller: _timeController,
-                decoration: const InputDecoration(
-                  hintText: 'e.g. 11:30 AM',
-                  prefixIcon: Icon(Icons.access_time),
-                ),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _timeController,
+                      decoration: const InputDecoration(
+                        hintText: 'e.g. 11:30',
+                        prefixIcon: Icon(Icons.access_time),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Radio<String>(
+                        value: 'AM',
+                        groupValue: _period,
+                        activeColor: AppTheme.primaryColor,
+                        onChanged: (val) => setState(() => _period = val!),
+                      ),
+                      const Text('AM'),
+                      Radio<String>(
+                        value: 'PM',
+                        groupValue: _period,
+                        activeColor: AppTheme.primaryColor,
+                        onChanged: (val) => setState(() => _period = val!),
+                      ),
+                      const Text('PM'),
+                    ],
+                  ),
+                ],
               ),
 
               const SizedBox(height: 48),

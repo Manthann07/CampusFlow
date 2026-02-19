@@ -67,6 +67,8 @@ class AppointmentCard extends StatelessWidget {
                           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 4),
                         Text(
@@ -86,10 +88,14 @@ class AppointmentCard extends StatelessWidget {
                               color: AppTheme.textLight,
                             ),
                             const SizedBox(width: 4),
-                            Text(
-                              dateTime,
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: AppTheme.textLight,
+                            Expanded(
+                              child: Text(
+                                dateTime,
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: AppTheme.textLight,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ],
