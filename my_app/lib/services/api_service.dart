@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
+import '../models/faculty_model.dart';
 
 class ApiService {
   // Use 10.0.2.2 for Android Emulator, localhost for iOS/Web/Desktop
@@ -135,6 +136,21 @@ class ApiService {
     } catch (e) {
       debugPrint("API fetchUserProfile error: $e");
       return null;
+    }
+  }
+
+  // --- Lab 9: External API Integration ---
+
+  static Future<List<Faculty>> getFaculty() async {
+    final response = await http.get(
+      Uri.parse("$_baseUrl/faculty")
+    );
+
+    if (response.statusCode == 200) {
+      List data = jsonDecode(response.body);
+      return data.where((e) => e != null).map((e) => Faculty.fromJson(e)).toList();
+    } else {
+      throw Exception("Failed to load real faculty data");
     }
   }
 }

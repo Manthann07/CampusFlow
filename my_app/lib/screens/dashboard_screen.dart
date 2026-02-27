@@ -15,6 +15,7 @@ import 'package:my_app/screens/notifications_screen.dart';
 import 'package:my_app/screens/edit_appointment_screen.dart';
 import 'package:my_app/screens/login_screen.dart';
 import 'package:my_app/screens/settings_screen.dart';
+import 'package:my_app/screens/faculty_list_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -809,6 +810,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
               onTap: () {
                 setState(() => _selectedIndex = 3);
                 Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.api_outlined),
+              title: const Text('External Faculty API'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(context, MaterialPageRoute(builder: (_) => FacultyListScreen()));
               },
             ),
             const Divider(),
